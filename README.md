@@ -15,7 +15,23 @@ This guide was tested using the followins OSs/Images:
 1. Update and upgrade ubuntu -> `sudo apt update && sudo apt upgrade`
 2. If ubuntu desktop install ssh `sudo apt install ssh`
 3. If ubuntu desktop install git `sudo apt install git`
-4. Set a static ip address
+4. Set a static ip address https://www.freecodecamp.org/news/setting-a-static-ip-in-ubuntu-linux-ip-address-tutorial/, force change `sudo systemctl restart systemd-networkd`. NOTE: if you are using a terminal follow the next sub steps
+    1. Edit or create the `yaml` network configuration file on `/etc/netplan/` -> `sudo nano /etc/netplan/00-installer-config.yaml`
+    2. Example:
+        ```yaml
+        network:
+        ethernets:
+            eth0:
+            dhcp4: no
+            addresses: [192.168.168.1/24]
+            gateway4: 192.168.168.1
+            nameservers:
+                addresses: [8.8.8.8, 8.8.4.4]
+        version: 2
+        ```
+    3. After saving the file, run `sudo netplan apply`
+    4. Check IP address: `ip add show`
+    5. If changes haven't appy yet, run `sudo systemctl restart systemd-networkd`
 5. Clone this repository `git clone https://github.com/Ensign-College/tig-docker.git`
 6. Make sure that you are working in the root directory of the cloned repository, this will most commonly be on `/home/[USER]/tig-docker`. To change to that directory run `cd /home/[USER]/tig-docker`
 

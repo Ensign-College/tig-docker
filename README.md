@@ -1,5 +1,7 @@
 # Telegraf, InfluxDB and Grafana with Docker
 
+![TIG Architecture](/img/tig_architecture.jpg "TIG Architecture")
+
 This document explains how to set up Grafana with Influx DB using docker containers and configuring the reverse proxy to access the Grafana dashboard over HTTPS.
 This guide was tested using the following OSs/Images:
 - Ubuntu Desktop 22.04.2 LTS or Ubuntu Server 22.04.2 LTS
@@ -10,7 +12,7 @@ This guide was tested using the following OSs/Images:
 
 ## How to step-by-step guide
 
-### Preparation
+### Server Preparation
 
 1. Update and upgrade ubuntu -> `sudo apt update && sudo apt upgrade`
 2. If ubuntu desktop install ssh `sudo apt install ssh`
@@ -21,12 +23,12 @@ This guide was tested using the following OSs/Images:
         ```yaml
         network:
         ethernets:
-            eth0:
+          eth0:
             dhcp4: no
             addresses: [192.168.168.1/24]
             gateway4: 192.168.168.1
             nameservers:
-                addresses: [8.8.8.8, 8.8.4.4]
+              addresses: [8.8.8.8, 8.8.4.4]
         version: 2
         ```
     3. After saving the file, run `sudo netplan apply`
@@ -55,6 +57,8 @@ On the ProxMox cluster:
 
 
 ### Telegraf configuration
+
+![Telegraf Main Diagram](/img/telegraf_main_diagram.png "Telegraf Main Diagram")
 
 The preconfiguration is `/telegraf/telegraf.conf`. When the docker container is built, it copies this file from the host machine inside the Telegraf docker container setting up our custom configuration for ProxMox servers. If you want to customize these configurations, you need to edit this file and build the container again.
 

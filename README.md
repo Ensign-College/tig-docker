@@ -1,4 +1,4 @@
-# Telegraf, InfluxDB and Grafana with Docker
+# Telegraf, InfluxDB and Grafana (TIG) with Docker
 
 ![TIG Architecture](/img/tig_architecture.jpg "TIG Architecture")
 
@@ -35,15 +35,14 @@ This guide was tested using the following OSs/Images:
     4. Check IP address: `ip add show`
     5. If changes haven't applied yet, run `sudo systemctl restart systemd-networkd`
 5. Clone this repository `git clone https://github.com/Ensign-College/tig-docker.git`
-6. Make sure you are working in the root directory of the cloned repository. This will most commonly be on `/home/[USER]/tig-docker`. To change to that directory, run `cd /home/[USER]/tig-docker`
+6. Make sure you are working in the root directory of the cloned repository. This will most commonly be on `/home/{USER}/tig-docker`. To change to that directory, run `cd /home/{USER}/tig-docker`
 
-### ProxMox nodes preparation
+### ProxMox nodes preparation (to be accessed by Telegraf)
 
-ProxMox node data should be collected through the official proxmox
-telegraf input plugin. We need to create a user with permissions and an api token for each ProxMox cluster to be able to retrieve VMs and Containers data from each ProxMox node.
+ProxMox node data should be collected through the official proxmox telegraf input plugin. We need to create a user with permissions and an api token for each ProxMox cluster to be able to retrieve VMs and Containers data from each ProxMox node.
 
 On the ProxMox cluster:
-1. Connect through ssh to one of the ProxMox nodes (`ssh root@PROXMOX_NODE_IP_ADDRESS`) and enter the corresponding password
+1. Connect through ssh to one of the ProxMox nodes (`ssh root@{PROXMOX_NODE_IP_ADDRESS}`) and enter the corresponding credentials
 2. Run the following command to create api user with permissions, save the generated token
     ```bash
     ## Create a influx user with PVEAuditor role
@@ -56,7 +55,7 @@ On the ProxMox cluster:
 **NOTE:** This process must be repeated in each of the desired clusters to be monitored
 
 
-### Telegraf configuration
+### Telegraf configuration (to connect to ProxMox clusters/nodes)
 
 ![Telegraf Main Diagram](/img/telegraf_main_diagram.png "Telegraf Main Diagram")
 
@@ -64,18 +63,20 @@ The preconfiguration is `/telegraf/telegraf.conf`. When the docker container is 
 
 It needs to be set up at least 1 input in the telegraf config file so that telegraf works appropriately, the same input plugin type can be added multiple times (this is how all ProxMox nodes can be monitored in the same Grafana dashboard).
 
+Edit the `telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTORY}/telegraf/telegraf.conf` with requested information
+
 ```toml
 # Provides metrics from Proxmox nodes (Proxmox Virtual Environment > 6.2).
 [[inputs.proxmox]]
   ## API connection configuration. The API token was introduced in Proxmox v6.2. Required permissions for user and token: PVEAuditor role on /.
   base_url = "https://{PROXMOX_NODE_IP_ADDRESS}/api2/json" #replace the {PROXMOX_NODE_IP_ADDRESS} with the real one
-  api_token = "USER@REALM!TOKENID=UUID" #replace the full api token with the one created in the previous step
+  api_token = "{USER}@{REALM}!{TOKENID}={UUID}" #replace the full api token with the one created in the previous step
 
   ## Node name, defaults to OS hostname
   ## Unless Telegraf is on the same host as Proxmox, setting this is required
   ## for Telegraf to successfully connect to Proxmox. If not on the same host,
   ## leaving this empty will often lead to a "search domain is not set" error.
-  node_name = "PROXMOX_NODE_NAME"
+  node_name = "{PROXMOX_NODE_NAME}"
 
   ## Optional TLS Config
   # tls_ca = "/etc/telegraf/ca.pem"
@@ -90,17 +91,7 @@ It needs to be set up at least 1 input in the telegraf config file so that teleg
 
 **NOTE:** You have to add as many sections of `[[inputs.proxmox]]` as proxmox nodes you want or need to configure
 
-### Telegraf, InfluxDB and Grafana with Docker
-
-1. Install docker on a Linux Machine: https://docs.docker.com/engine/install/ubuntu/
-2. After the installation is completed, make docker run with a non-root user. Use the following guide https://docs.docker.com/engine/install/linux-postinstall/
-3. Copy `.env.example` file to your local enviroment
-4. Rename `.env.example` file to `.env`
-5. Replace all necessary enviromental variables with the proper configuration values (credentials, bucket names, etc)
-6. Run `docker compose up -d` or `docker compose up` to build and run all services together
-7. Check that all services are running `docker ps`
-
-### Nginx
+### Nginx (enable HTTPS for Grafana)
 
 1. Install `nginx` -> `sudo apt install nginx`
 2. Create the directory `sudo mkdir /etc/nginx/ssl`
@@ -112,10 +103,20 @@ It needs to be set up at least 1 input in the telegraf config file so that teleg
 8. Restart `nginx` -> `sudo service nginx restart`
 9. Check if nginx accept changes and if is running correctly `nginx` -> `sudo service nginx status`
 
+### Telegraf, InfluxDB and Grafana with Docker
+
+1. Install docker on a Linux Machine: https://docs.docker.com/engine/install/ubuntu/
+2. After the installation is completed, make docker run with a non-root user. Use the following guide https://docs.docker.com/engine/install/linux-postinstall/
+3. Copy `.env.example` file to your local enviroment
+4. Rename `.env.example` file to `.env`
+5. Replace all necessary enviromental variables with the proper configuration values (credentials, bucket names, etc)
+6. Run `docker compose up -d` or `docker compose up` to build and run all services together
+7. Check that all services are running `docker ps`
+
 ### Testing and Visualizing Data on InfluxDB
 
 As a good practice, we should test if the Telegraf agent is gathering data into InfluxDB. The following is also the process of creating customized queries.
-1. Go to `http://[IPADDRESS]:8086` and log in with the corresponding credentials
+1. Go to `http://{SERVER_IPADDRESS}:8086` and log in with the corresponding credentials
 2. Go to Buckets; we should see at least 3 buckets. `_monitoring` and `_tasks` are InfluxDB system buckets. And the other bucket should be the bucket where we are putting and retrieving data. NOTE: the probable name for this bucket should be `proxmox`
 3. The first column (FROM) is the bucket name. All the next following columns are filters. In the first filter, we could select our input (from the `telegraf.conf`), which is called `proxmox`. This input plugin collects data from each ProxMox VM or container. After selecting filters, click `SUBMIT` to see if everything works in real time. To see what the collected metrics or tags go to https://github.com/influxdata/telegraf/blob/master/plugins/inputs/proxmox/README.md
 ![InlfuxDB Sample Data](/img/influxdb_sample_data.png "InlfuxDB Sample Data")
@@ -166,8 +167,18 @@ Once a data source (InfluxDB) is added to Grafana. We could import an existing d
 ![Grafana New Dashboard](/img/grafana_new_dashboard.png "Grafana New Dashboard")
 
 ### Testing
-- Test the grafana accessing through `https://[IPADDRESS]`
-- Test the influxdb accessing through `http://[IPADDRESS]:8086`
+- Test the grafana accessing through `https://{SERVER_IPADDRESS}`
+- Test the influxdb accessing through `http://{SERVER_IPADDRESS}:8086`
+
+## Troubleshoot containers
+
+- `docker ps`: shows the current states of all active containers
+- `docker logs {CONTAINER_NAME}`: show the last logs from a specific container (ex: this can help to see if something is happing with comunication between Telegrad and ProxMox)
+- `docker exec -it {CONTAINER_NAME} bash`: open an interactive terminal session inside the container to navigate or edit files
+    - `apt udpate`: to update linux packages inside a container
+    - `apt install {PACKAGE_NAME}`: to install a linux package inside a container. Ex: `apt install nano` (to edit config files)
+    - `cat {FILE}`: to read the content of a file
+    - `nano {FILE}`: to edit the content of a file
 
 # Coming soon...
 - Creating metrics alerts (maybe with Grafana, Telegraf, or InfluxDB). This needs to be researched.

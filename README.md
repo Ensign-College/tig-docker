@@ -113,6 +113,8 @@ Edit the `telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTORY}/tele
 6. Run `docker compose up -d` or `docker compose up` to build and run all services together
 7. Check that all services are running `docker ps`
 
+**NOTE**: This docker compose file comes with `Portainer` to monitoring and manage containers on a web application. Go to `https://{SERVER_IPADDRESS}:9443` to access `Portainer`. On the first try you need to update the `admin` user credentials.
+
 ### Testing and Visualizing Data on InfluxDB
 
 As a good practice, we should test if the Telegraf agent is gathering data into InfluxDB. The following is also the process of creating customized queries.
@@ -169,6 +171,7 @@ Once a data source (InfluxDB) is added to Grafana. We could import an existing d
 ### Testing
 - Test the grafana accessing through `https://{SERVER_IPADDRESS}`
 - Test the influxdb accessing through `http://{SERVER_IPADDRESS}:8086`
+- Test the portainer accessing through `https://{SERVER_IPADDRESS}:9443`
 
 ## Troubleshoot containers
 
@@ -181,5 +184,6 @@ Once a data source (InfluxDB) is added to Grafana. We could import an existing d
     - `nano {FILE}`: to edit the content of a file
 
 # Coming soon...
+- Physical Proxmox server health metrics
 - Creating metrics alerts (maybe with Grafana, Telegraf, or InfluxDB). This needs to be researched.
 - Set InfluxDB on nginx for HTTPS traffic.

@@ -2,6 +2,8 @@
 
 ![TIG Architecture](/img/tig_architecture.jpg "TIG Architecture")
 
+*Last update on 2023-06-14*
+
 This document explains how to set up Grafana with Influx DB using docker containers and configuring the reverse proxy to access the Grafana dashboard over HTTPS.
 This guide was tested using the following OSs/Images:
 - Ubuntu Desktop 22.04.2 LTS or Ubuntu Server 22.04.2 LTS
@@ -55,15 +57,65 @@ On the ProxMox cluster:
 **NOTE:** This process must be repeated in each of the desired clusters to be monitored
 
 
-### Telegraf configuration (to connect to ProxMox clusters/nodes)
+### Telegraf Configurations
 
 ![Telegraf Main Diagram](/img/telegraf_main_diagram.png "Telegraf Main Diagram")
 
-The preconfiguration is `/telegraf/telegraf.conf`. When the docker container is built, it copies this file from the host machine inside the Telegraf docker container setting up our custom configuration for ProxMox servers. If you want to customize these configurations, you need to edit this file and build the container again.
+Telegraf must be installed and configured on each server to collect data. There are two important different configurations to set up:
+1. Collect data (like cpu use, disk usage, memory usage or network usage) from a physical servers like a `Linux Server`.
+2. Collect data (like cpu load, disk usage or memory usage) from `ProxMox VMs and Containers` individually.
+
+#### Collect data from Linux Servers
+
+The preconfiguration to collect data from proxmox VMs and containers using the `[[inputs.proxmox]]` input plugin is located in `/telegraf/server.telegraf.conf`.
+
+Linux Server configurations step-by-step (as root)
+1. If necesary, install git `apt-get install git`
+1. Install Telegraf
+    ```bash
+    # influxdata-archive_compat.key GPG Fingerprint: 9D539D90D3328DC7D6C8D3B9D8FF8E1F7DF8B07E
+    wget -q https://repos.influxdata.com/influxdata-archive_compat.key
+    echo '393e8779c89ac8d958f81f942f9ad7fb82a25e133faddaf92e15b16e6ac9ce4c influxdata-archive_compat.key' | sha256sum -c && cat influxdata-archive_compat.key | gpg --dearmor | tee /etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg > /dev/null
+    echo 'deb [signed-by=/etc/apt/trusted.gpg.d/influxdata-archive_compat.gpg] https://repos.influxdata.com/debian stable main' | tee /etc/apt/sources.list.d/influxdata.list
+    apt-get update && apt-get install telegraf
+    ```
+2. Clone the repository `git clone https://github.com/Ensign-College/tig-docker.git` (a possible good location is in the root directory `/`)
+3. Remove the default telegraf config file `rm /etc/telegraf/telegraf.conf`
+4. Copy `{REPOSITORY_ROOT_DIRECTORY}/telegraf/server.telegraf.conf` file to your local enviroment `cp /telegraf/server.telegraf.conf /etc/telegraf/telegraf.conf`
+5. Replace the following data on the `telegraf.conf` file:
+    - `INFLUXDB_IP_ADDRESS`: InfluxDB IP Address
+    - `DOCKER_INFLUXDB_ADMIN_TOKEN`: InfluxDB Admin user token
+    - `DOCKER_INFLUXDB_ORGANIZATION`: InfluxDB organization (`TechLab` is a possible value)
+    - `DOCKER_INFLUXDB_BUCKET`: InfluxDB Bucket (`proxmox` is a possible value)
+    ```toml
+    [[outputs.influxdb_v2]]
+    ## The URLs of the InfluxDB cluster nodes.
+    ##
+    ## Multiple URLs can be specified for a single cluster, only ONE of the
+    ## urls will be written to each interval.
+    ##   ex: urls = ["https://us-west-2-1.aws.cloud2.influxdata.com"]
+    urls = ["http://{INFLUXDB_IP_ADDRESS}:8086"]
+
+    ## Token for authentication.
+    token = "{DOCKER_INFLUXDB_ADMIN_TOKEN}"
+
+    ## Organization is the name of the organization you wish to write to; must exist.
+    organization = "{DOCKER_INFLUXDB_ORGANIZATION}"
+
+    ## Destination bucket to write into.
+    bucket = "{DOCKER_INFLUXDB_BUCKET}"
+    ```
+6. Start telegraf service `systemctl start telegraf`
+7. Enable telegraf service `systemctl enable telegraf`
+8. Check if telegraf is properly working `systemctl status telegraf`. If the service is active, now this server is sending data to `InfluxDB`
+
+#### Collect data from ProxMox VMs and Containers (ProxMox clusters/nodes)
+
+The preconfiguration to collect data from proxmox VMs and containers using the `[[inputs.proxmox]]` input plugin is located in `/telegraf/proxmox.telegraf.conf`. When the docker container is built, it copies this file from the host machine inside the Telegraf docker container setting up our custom configuration for ProxMox servers. If you want to customize these configurations, you need to edit this file and build the container again.
 
 It needs to be set up at least 1 input in the telegraf config file so that telegraf works appropriately, the same input plugin type can be added multiple times (this is how all ProxMox nodes can be monitored in the same Grafana dashboard).
 
-Edit the `telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTORY}/telegraf/telegraf.conf` with requested information
+Edit the `proxmox.telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTORY}/telegraf/proxmox.telegraf.conf` with requested information
 
 ```toml
 # Provides metrics from Proxmox nodes (Proxmox Virtual Environment > 6.2).
@@ -120,7 +172,7 @@ Edit the `telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTORY}/tele
 As a good practice, we should test if the Telegraf agent is gathering data into InfluxDB. The following is also the process of creating customized queries.
 1. Go to `http://{SERVER_IPADDRESS}:8086` and log in with the corresponding credentials
 2. Go to Buckets; we should see at least 3 buckets. `_monitoring` and `_tasks` are InfluxDB system buckets. And the other bucket should be the bucket where we are putting and retrieving data. NOTE: the probable name for this bucket should be `proxmox`
-3. The first column (FROM) is the bucket name. All the next following columns are filters. In the first filter, we could select our input (from the `telegraf.conf`), which is called `proxmox`. This input plugin collects data from each ProxMox VM or container. After selecting filters, click `SUBMIT` to see if everything works in real time. To see what the collected metrics or tags go to https://github.com/influxdata/telegraf/blob/master/plugins/inputs/proxmox/README.md
+3. The first column (FROM) is the bucket name. All the next following columns are filters. In the first filter, we could select our input (from the `proxmox.telegraf.conf`, which inside the docker container is anemd `telegraf.conf`), which is called `proxmox`. This input plugin collects data from each ProxMox VM or container. After selecting filters, click `SUBMIT` to see if everything works in real time. To see what the collected metrics or tags go to https://github.com/influxdata/telegraf/blob/master/plugins/inputs/proxmox/README.md
 ![InlfuxDB Sample Data](/img/influxdb_sample_data.png "InlfuxDB Sample Data")
 4. To see the raw flux query click on `SCRIPT EDITOR`. This will show the query as flux query language. This text could be copied to be used on any Grafana dashboard panel.
 ![InlfuxDB Raw Query](/img/influxdb_raw_query.png "InlfuxDB Raw Query")

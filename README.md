@@ -61,15 +61,15 @@ On the ProxMox cluster:
 ![Telegraf Main Diagram](/img/telegraf_main_diagram.png "Telegraf Main Diagram")
 
 Telegraf must be installed and configured on each server to collect data. There are two important different configurations to set up:
-1. Collect data (like cpu use, disk usage, memory usage or network usage) from a physical servers like a `Linux Server`.
-2. Collect data (like cpu load, disk usage or memory usage) from `ProxMox VMs and Containers` individually.
+1. Collect data (like cpu use, disk usage, memory usage, or network usage) from a physical server like a `Linux Server`.
+2. Collect data (like cpu load, disk usage, or memory usage) from `ProxMox VMs and Containers` individually.
 
 #### Collect data from Linux Servers
 
-The preconfiguration to collect data from proxmox VMs and containers using the `[[inputs.proxmox]]` input plugin is located in `/telegraf/server.telegraf.conf`. This telegraf agent configuration should be done on each physical/host server.
+The preconfiguration to collect data from Linux Servers using the `[[outputs.influxdb_v2]]` input plugin is located in `/telegraf/server.telegraf.conf`. This telegraf agent configuration should be done on each physical/host server.
 
 Linux Server configurations step-by-step (as root)
-1. If necesary, install git `apt-get install git`
+1. If necessary, install git `apt-get install git`
 2. Install Telegraf
     ```bash
     # influxdata-archive_compat.key GPG Fingerprint: 9D539D90D3328DC7D6C8D3B9D8FF8E1F7DF8B07E
@@ -80,7 +80,7 @@ Linux Server configurations step-by-step (as root)
     ```
 3. Clone the repository `git clone https://github.com/Ensign-College/tig-docker.git` (a possible good location is in the root directory `/`)
 4. Remove the default telegraf config file `rm /etc/telegraf/telegraf.conf`
-5. Copy `{REPOSITORY_ROOT_DIRECTORY}/telegraf/server.telegraf.conf` file to your local enviroment `cp ./telegraf/server.telegraf.conf /etc/telegraf/telegraf.conf`
+5. Copy `{REPOSITORY_ROOT_DIRECTORY}/telegraf/server.telegraf.conf` file to your local environment `cp ./telegraf/server.telegraf.conf /etc/telegraf/telegraf.conf`
 6. Replace the following data on the `telegraf.conf` file:
     - `INFLUXDB_IP_ADDRESS`: InfluxDB IP Address
     - `DOCKER_INFLUXDB_ADMIN_TOKEN`: InfluxDB Admin user token
@@ -98,7 +98,7 @@ Linux Server configurations step-by-step (as root)
     ## Token for authentication.
     token = "{DOCKER_INFLUXDB_ADMIN_TOKEN}"
 
-    ## Organization is the name of the organization you wish to write to; must exist.
+    ## Organization is the name of the organization you wish to write to; it must exist.
     organization = "{DOCKER_INFLUXDB_ORGANIZATION}"
 
     ## Destination bucket to write into.
@@ -108,13 +108,15 @@ Linux Server configurations step-by-step (as root)
 8. Enable telegraf service `systemctl enable telegraf`
 9. Check if telegraf is properly working `systemctl status telegraf`. If the service is active, now this server is sending data to `InfluxDB`
 
+**NOTE:** You have to add as many sections of `[[outputs.influxdb_v2]]` as Linux Servers you want or need to configure
+
 #### Collect data from ProxMox VMs and Containers (ProxMox clusters/nodes)
 
 The preconfiguration to collect data from proxmox VMs and containers using the `[[inputs.proxmox]]` input plugin is located in `/telegraf/proxmox.telegraf.conf`. When the docker container is built, it copies this file from the host machine inside the Telegraf docker container setting up our custom configuration for ProxMox servers. If you want to customize these configurations, you need to edit this file and build the container again.
 
 It needs to be set up at least 1 input in the telegraf config file so that telegraf works appropriately, the same input plugin type can be added multiple times (this is how all ProxMox nodes can be monitored in the same Grafana dashboard).
 
-Edit the `proxmox.telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTORY}/telegraf/proxmox.telegraf.conf` with requested information
+Edit the `proxmox.telegraf.conf` file, which is located `{REPOSITORY_ROOT_DIRECTORY}/telegraf/proxmox.telegraf.conf` with the requested information
 
 ```toml
 # Provides metrics from Proxmox nodes (Proxmox Virtual Environment > 6.2).
@@ -126,7 +128,7 @@ Edit the `proxmox.telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTO
   ## Node name, defaults to OS hostname
   ## Unless Telegraf is on the same host as Proxmox, setting this is required
   ## for Telegraf to successfully connect to Proxmox. If not on the same host,
-  ## leaving this empty will often lead to a "search domain is not set" error.
+  ## Leaving this empty will often lead to a "search domain is not set" error.
   node_name = "{PROXMOX_NODE_NAME}"
 
   ## Optional TLS Config
@@ -147,7 +149,7 @@ Edit the `proxmox.telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTO
 1. Install `nginx` -> `sudo apt install nginx`
 2. Create the directory `sudo mkdir /etc/nginx/ssl`
 3. remove the default nginx config file `sudo rm /etc/nginx/sites-enabled/default`
-4. Copy `default.conf.example` file to your local enviroment `sudo cp default.conf.example /etc/nginx/sites-enabled/default.conf`
+4. Copy `default.conf.example` file to your local environment `sudo cp default.conf.example /etc/nginx/sites-enabled/default.conf`
 5. Edit the new nginx `default.conf` file -> `sudo nano /etc/nginx/sites-enabled/default.conf` and replace the IP Address with the right one
 6. Generate ssl certificates running `sudo openssl req -x509 -nodes -days 3652 -newkey rsa:2048 -keyout /etc/nginx/ssl/nginx-selfsigned.key -out /etc/nginx/ssl/nginx-selfsigned.crt -config ssl-info.txt`
 7. Enable `nginx` -> `sudo systemctl enable nginx`
@@ -158,23 +160,23 @@ Edit the `proxmox.telegraf.conf` file which is located `{REPOSITORY_ROOT_DIRECTO
 
 1. Install docker on a Linux Machine: https://docs.docker.com/engine/install/ubuntu/
 2. After the installation is completed, make docker run with a non-root user. Use the following guide https://docs.docker.com/engine/install/linux-postinstall/
-3. Copy `.env.example` file to your local enviroment
+3. Copy `.env.example` file to your local environment
 4. Rename `.env.example` file to `.env`
-5. Replace all necessary enviromental variables with the proper configuration values (credentials, bucket names, smtp grafana information, etc)
+5. Replace all necessary environment variables with the proper configuration values (credentials, bucket names, smtp grafana information, etc)
     - InfluxDB information
     - Telegraf configuration file
     - Grafana port or smtp configuration
 6. Run `docker compose up -d` or `docker compose up` to build and run all services together
 7. Check that all services are running `docker ps`
 
-**NOTE**: This docker compose file comes with `Portainer` to monitoring and manage containers on a web application. Go to `https://{SERVER_IPADDRESS}:9443` to access `Portainer`. On the first try you need to update the `admin` user credentials.
+**NOTE**: This docker compose file comes with `Portainer` to monitor and manage containers on a web application. Go to `https://{SERVER_IPADDRESS}:9443` to access `Portainer`. On the first try, you need to update the `admin` user credentials.
 
 ### Testing and Visualizing Data on InfluxDB
 
 As a good practice, we should test if the Telegraf agent is gathering data into InfluxDB. The following is also the process of creating customized queries.
 1. Go to `http://{SERVER_IPADDRESS}:8086` and log in with the corresponding credentials
 2. Go to Buckets; we should see at least 3 buckets. `_monitoring` and `_tasks` are InfluxDB system buckets. And the other bucket should be the bucket where we are putting and retrieving data. NOTE: the probable name for this bucket should be `proxmox`
-3. The first column (FROM) is the bucket name. All the next following columns are filters. In the first filter, we could select our input (from the `proxmox.telegraf.conf`, which inside the docker container is anemd `telegraf.conf`), which is called `proxmox`. This input plugin collects data from each ProxMox VM or container. After selecting filters, click `SUBMIT` to see if everything works in real time. To see what the collected metrics or tags go to https://github.com/influxdata/telegraf/blob/master/plugins/inputs/proxmox/README.md
+3. The first column (FROM) is the bucket name. All the next following columns are filters. In the first filter, we could select our input (from the `proxmox.telegraf.conf`, which inside the docker container is anemd `telegraf.conf`), which is called `proxmox`. This input plugin collects data from each ProxMox VM or container. After selecting filters, click `SUBMIT` to see if everything works in real-time. To see what the collected metrics or tags go to https://github.com/influxdata/telegraf/blob/master/plugins/inputs/proxmox/README.md
 ![InlfuxDB Sample Data](/img/influxdb_sample_data.png "InlfuxDB Sample Data")
 4. To see the raw flux query click on `SCRIPT EDITOR`. This will show the query as flux query language. This text could be copied to be used on any Grafana dashboard panel.
 ![InlfuxDB Raw Query](/img/influxdb_raw_query.png "InlfuxDB Raw Query")
@@ -203,10 +205,10 @@ If more details are needed to connect a data source on Grafana, follow one of th
 
 ### Grafana dashboard
 
-Once a data source (InfluxDB) is added to Grafana. We could import an existing dashboard to display the data, or we could create a dashboard from scratch.
+Once a data source (InfluxDB) is added to Grafana, we could import an existing dashboard to display the data, or we could create a dashboard from scratch.
 
 #### Importing an existing dashboard
-1. Select a compatible dashboard for `Flux` language. Go to https://grafana.com/grafana/dashboards/. For this example we are using `ID: 15650` (https://grafana.com/grafana/dashboards/15650-telegraf-influxdb-2-0-flux/)
+1. Select a compatible dashboard for `Flux` language. Go to https://grafana.com/grafana/dashboards/. For this example, we are using `ID: 15650` (https://grafana.com/grafana/dashboards/15650-telegraf-influxdb-2-0-flux/)
 2. Go to the **`+`** sign and click on `import`.
 3. Copy or write the dashboard ID, and click on `load`
 4. Edit the dashboard name and folder as wanted, then select the `InfluxDB` database.
@@ -224,9 +226,9 @@ Once a data source (InfluxDB) is added to Grafana. We could import an existing d
 
 ### Grafana Alerting
 
-Grafana Alerting helps to learn about problems moments after they occur. It is necesary to:
+Grafana Alerting helps to learn about problems moments after they occur. It is necessary to:
 -   Set up contact points (like destination emails or integrations with third-party apps, like Microsoft Teams or Slack)
--   Set up notification policies to indicate when and to whom the notification will be send
+-   Set up notification policies to indicate when and to whom the notification will be sent
 -   Create alert rules to trigger customized system metrics
 
 #### Contact points
@@ -234,28 +236,28 @@ Grafana Alerting helps to learn about problems moments after they occur. It is n
 2. Click on `+ New contact point` or edit the default contact point
 3. Give the contact point a name, en then as many contact point types as you want.
 ##### Email (SMTP)
-The SMTP service should be enable in Grafana first to be able to send emails. This step is done replacing the necesary enviroment variables when building the docker containers.
-NOTE: in our case we are using gmail SMTP service with a google account with 2FA and credentials through an google app password.
+The SMTP service should be enabled in Grafana first to be able to send emails. This step is done by replacing the necessary environment variables when building the docker containers.
+NOTE: in our case, we are using Gmail SMTP service with a Google account with 2FA and credentials through a Google app password.
 1. Chose `Email` contact type
 2. Fill the destinations emails separated by a comma
 3. Click on `Save contact point`
 
 ##### Microsoft Teams
-To enable notifications on Microsoft Teams we need to get an incoming Webhook url from a channel inside a team. Follow this tutorial to get the Webhook url: https://dev.to/niteshsinghal85/sending-grafana-notifications-on-teams-channel-hcn
+To enable notifications on Microsoft Teams, we need to get an incoming Webhook url from a channel inside a team. Follow this tutorial to get the Webhook url: https://dev.to/niteshsinghal85/sending-grafana-notifications-on-teams-channel-hcn
 1. Chose `Microsoft Teams` contact type
-2. Fill the url field from the Teams group.
+2. Fill in the url field from the Teams group.
 3. Click on `Save contact point`
 
 #### Notification policies
-Notification policy link contact points with matching labels. When an alert trigger if a label matches a notification policy condition, this alert notification will be send to the contact point.
-1. Add as many `matching labels` a wanted
+Notification policy link contact points with matching labels. When an alert trigger if a label matches a notification policy condition, this alert notification will be sent to the contact point.
+1. Add as many `matching labels` as wanted
 2. Choose a `Contact point`
 3. Click on `Save policy`
 #### Create Alert Rule
 1. Rule type
-    1. Fill the rule name, select Grafana managed alert as rule type and choose a folder
+    1. Fill in the rule name, select Grafana managed alert as the rule type, and choose a folder
 2. Create a query to be alerted on
-    1. In the `A` section enter the main query. Example:
+    1. In the `A` section, enter the main query. Example:
     ```
     from(bucket: "servers")
         |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
@@ -265,24 +267,24 @@ Notification policy link contact points with matching labels. When an alert trig
         |> yield(name: "mean")
     ```
     ![Alert A Query](img/alert_a_query.png "Alert A Query")
-    2. In the `B` section when can add a query or a expression. Expression can help to set aggregate or reduce values from a time series. In the following example we use a reduce expression to get the last value in the time series for each server (time series) unsing value from the `A` section as input (This is done because only one value per time series can trigger an alert)
+    2. In the `B` section, when can add a query or a expression. An Expression can help to set aggregate or reduce values from a time series. In the following example, we use a reduce expression to get the last value in the time series for each server (time series) using the value from the `A` section as input (This is done because only one value per time series can trigger an alert)
     ![Alert B Expression](img/alert_b_expression.png "Alert B Expression")
     3. We can add more expressions or queries. In this case, we set a threshold to trigger the alert when the value from input `B` is bigger than `25% (0.25)`
     ![Alert C Expression](img/alert_c_expression.png "Alert C Expression")
 3. Define alert conditions
     1. Select the condition to evaluate. Usually is the last condition/expression. In this example, we select `C` as the condition
     2. Set the evaluation times:
-        - Evaluate every: this define how often this evaluation will be done
-        - For: Once condition is breached, alert will go into pending state. If it is pending for longer than the "for" value, it will become a trigger (firing) alert.
+        - Evaluate every: this defines how often this evaluation will be done
+        - For: Once the condition is reached, an alert will go into a pending state. If it is pending for longer than the "for" value, it will become a trigger (firing) alert.
     ![Alert Conditions](img/alert_conditions.png "Alert Conditions")
 4. Add details for your alert
     1. Fill Summary and/or annotations as wanted. All this information is optional and can be filled in to customize the alert message
-    2. Add custom labels. These labels will link the the triggered alert to the notification policy that has the label
+    2. Add custom labels. These labels will link the triggered alert to the notification policy that has the label
     
     ![Alert Custom Label](img/alert_custom_label.png "Alert Custom Label")
 5. Click on `Save and exist`.
 
-Now, every time than an alert is triggered, a notification will be send to the contact points.
+Now, every time than an alert is triggered, a notification will be sent to the contact points.
 
 **Microsoft Teams**
 ![Notification Microsoft Teams](img/notification_microsoft_teams.png "Notification Microsoft Teams")
@@ -298,7 +300,7 @@ Now, every time than an alert is triggered, a notification will be send to the c
 ## Troubleshoot containers
 
 - `docker ps`: shows the current states of all active containers
-- `docker logs {CONTAINER_NAME}`: show the last logs from a specific container (ex: this can help to see if something is happing with comunication between Telegrad and ProxMox)
+- `docker logs {CONTAINER_NAME}`: show the last logs from a specific container (ex: this can help to see if something is happing with communication between Telegrad and ProxMox)
 - `docker exec -it {CONTAINER_NAME} bash`: open an interactive terminal session inside the container to navigate or edit files
     - `apt udpate`: to update linux packages inside a container
     - `apt install {PACKAGE_NAME}`: to install a linux package inside a container. Ex: `apt install nano` (to edit config files)
